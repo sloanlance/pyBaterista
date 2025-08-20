@@ -108,6 +108,7 @@ class DrumPad(ui.View):
     def start_column_highlight_loop(self):
         self.highlight_columns_loop()
 
+    @ui.in_background
     def highlight_columns_loop(self):
         # Un-highlight previous
         if self.previous_highlight is not None:
