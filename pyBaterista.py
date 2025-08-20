@@ -13,11 +13,15 @@ COLUMNS = 16
 ROWS = 16
 
 FLASH_COLOR = '#FFFFE0'  # Light yellow
+BUTTON_UNSELECTED_COLOR = '#FF8C00'  # Dark orange
+BUTTON_SELECTED_COLOR = '#00FF00'  # Bright green
 
 MAX_W, MAX_H = ui.get_window_size()
 
 BUTTON_WIDTH = MAX_W // COLUMNS - PADDING
 BUTTON_HEIGHT = MAX_H // ROWS - PADDING
+
+COLUMN_HIGHLIGHT_DELAY = 0.25
 
 @ui.in_background
 def play_and_flash1(sender):
@@ -41,9 +45,10 @@ def play_and_flash(sender):
     #print(sender.superview.name)
     sound.play_effect(sender.sound_name)
     sender.bg_color = FLASH_COLOR
+    sender.selected = not sender.selected
 
     def restore():
-        sender.bg_color = sender.base_color
+        sender.bg_color = (sender.base_color, BUTTON_SELECTED_COLOR)[sender.selected]
 
     ui.delay(restore, 0.12)
 
@@ -83,7 +88,7 @@ class DrumPad(ui.View):
             for row in range(ROWS):
                 #idx = row * COLUMNS + col
                 idx = row
-                base_color = 'orange'
+                base_color = BUTTON_UNSELECTED_COLOR
                 btn = ui.Button(
                     bg_color=base_color,
                     title=str(idx + 1),
@@ -102,6 +107,7 @@ class DrumPad(ui.View):
                 btn.sound_name = DRUM_SOUNDS[idx]
                 btn.flash_restore_pending = False
                 btn.action = play_and_flash
+                btn.selected = False
                 colView.add_subview(btn)
             self.add_subview(colView)
 
