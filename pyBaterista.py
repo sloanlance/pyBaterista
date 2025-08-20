@@ -1,17 +1,18 @@
-import ui
 import sound
+import time
+import ui
 
 DRUM_SOUNDS = [
-  'drums:Drums_01', 'drums:Drums_02', 'drums:Drums_03', 'drums:Drums_04', 
-  'drums:Drums_05', 'drums:Drums_06', 'drums:Drums_07', 'drums:Drums_08', 
-  'drums:Drums_09', 'drums:Drums_10', 'drums:Drums_11', 'drums:Drums_12', 
+  'drums:Drums_01', 'drums:Drums_02', 'drums:Drums_03', 'drums:Drums_04',
+  'drums:Drums_05', 'drums:Drums_06', 'drums:Drums_07', 'drums:Drums_08',
+  'drums:Drums_09', 'drums:Drums_10', 'drums:Drums_11', 'drums:Drums_12',
   'drums:Drums_13', 'drums:Drums_14', 'drums:Drums_15', 'drums:Drums_16', ]
 
-PADDING = 20
-COLUMNS = 8
+PADDING = 10
+COLUMNS = 16
 ROWS = 16
 
-FLASH_COLOR = '#FFFF66'  # Light yellow
+FLASH_COLOR = '#FFFFE0'  # Light yellow
 
 MAX_W, MAX_H = ui.get_window_size()
 
@@ -19,44 +20,55 @@ BUTTON_WIDTH = MAX_W // COLUMNS - PADDING
 BUTTON_HEIGHT = MAX_H // ROWS - PADDING
 
 @ui.in_background
-def play_and_flash(sender):
+def play_and_flash1(sender):
     sound.play_effect(sender.sound_name)
-    print(sender.superview.name)
-    # If already flashing, reset color
-    if hasattr(sender, 'flash_restore_pending') and sender.flash_restore_pending:
-        ui.cancel_delays()  # Will cancel all pending ui.delay calls
-        sender.background_color = sender.base_color
-        sender.flash_restore_pending = False
-    # Start flash
     sender.bg_color = FLASH_COLOR
-    sender.flash_restore_pending = True
-    # Schedule restore
+    # Store a timestamp to identify the current flash
+    now = time.time()
+
+    def restore():
+        # Only restore if no newer flash has happened
+        if getattr(sender, '_flash_time', None) == now:
+            sender.bg_color = sender.base_color
+            sender._flash_time = None
+
+    if getattr(sender, '_flash_time', None) is None:
+        sender._flash_time = now
+        ui.delay(restore, 0.12)
+
+@ui.in_background
+def play_and_flash(sender):
+    #print(sender.superview.name)
+    sound.play_effect(sender.sound_name)
+    sender.bg_color = FLASH_COLOR
+
     def restore():
         sender.bg_color = sender.base_color
-        sender.flash_restore_pending = False
+
     ui.delay(restore, 0.12)
 
 class DrumPad(ui.View):
     def __init__(self):
         super().__init__()
         self.background_color = 'black'
-        self.flash_color = 'yellow'
         self.name = 'DrumPad main view'
         self.original_bg_color = self.background_color
+        self.column_views = []
+        self.previous_highlight = None
+        self.highlight_index = 0
         self.build_grid()
-        
+
     def present(self, *args, **kwargs):
-        # First, call the superclass's present method to show the view as usual
         super().present(*args, **kwargs)
-        # Now do your extra tasks.
         print('DrumPad has been presented!')
-        # For example, you could start an animation or setup additional features here.    
-        
+        self.start_column_highlight_loop()
+
     def build_grid(self):
         for col in range(COLUMNS):
+            #col_color = ('blue', 'grey')[col % 2]
+            col_color = 'clear'
             colView = ui.View(
-              background_color = ('blue', 'grey')[col % 2],
-              #background_color = 'clear',
+              background_color = col_color,
               name=f'colView_{col}',
               #alpha=0.5,
               frame = (
@@ -66,7 +78,8 @@ class DrumPad(ui.View):
                 MAX_H
               )
             )
-            self.add_subview(colView)
+            colView.original_color = col_color
+            self.column_views.append(colView)
             for row in range(ROWS):
                 #idx = row * COLUMNS + col
                 idx = row
@@ -85,8 +98,6 @@ class DrumPad(ui.View):
                     BUTTON_WIDTH,
                     BUTTON_HEIGHT
                 )
-                
-                # Store our extra state directly on the button
                 btn.base_color = base_color
                 btn.sound_name = DRUM_SOUNDS[idx]
                 btn.flash_restore_pending = False
@@ -94,14 +105,27 @@ class DrumPad(ui.View):
                 colView.add_subview(btn)
             self.add_subview(colView)
 
+    def start_column_highlight_loop(self):
+        self.highlight_columns_loop()
+
+    def highlight_columns_loop(self):
+        # Un-highlight previous
+        if self.previous_highlight is not None:
+            prev_col = self.column_views[self.previous_highlight]
+            prev_col.background_color = prev_col.original_color
+        # Highlight current
+        current_col = self.column_views[self.highlight_index]
+        current_col.background_color = '#cffdbc'  # verypalegreen
+        self.previous_highlight = self.highlight_index
+        self.highlight_index = (self.highlight_index + 1) % COLUMNS
+        ui.delay(self.highlight_columns_loop, 1.0)
 
 if __name__ == '__main__':
     w = (BUTTON_WIDTH + PADDING) * COLUMNS + PADDING
     h = (BUTTON_HEIGHT + PADDING) * ROWS + PADDING
-    print(f'{w=}, {h=}')
     view = DrumPad()
     view.frame = (0, 0, w, h)
-    print(view.height, view.width)    
+    print(view.height, view.width)
     view.present('full_screen', hide_title_bar=True)
     print(view.height, view.width)
 
